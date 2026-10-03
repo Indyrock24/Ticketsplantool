@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<!-- Cargamos Tesseract.js para el OCR local -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 :root{
@@ -37,6 +36,7 @@ img{max-width:100%}
 
 header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:8px 0 20px}
 h1{font-size:1.75rem;line-height:1.1;margin:0;letter-spacing:-.02em;font-weight:700}
+.version-badge{font-size:0.75rem; background:var(--violet-soft); color:var(--violet); padding:3px 8px; border-radius:12px; font-weight:700; display:inline-block; margin-top:4px}
 .month{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
 .month input{font:inherit;font-size:.9rem;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:8px;padding:4px 8px}
 .total-line{font-size:.95rem;color:var(--muted)}
@@ -58,7 +58,7 @@ h1{font-size:1.75rem;line-height:1.1;margin:0;letter-spacing:-.02em;font-weight:
 .btn:disabled{opacity:.5;cursor:default}
 .btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--violet);outline-offset:2px}
 
-.status{margin-top:16px;font-size:.92rem;color:var(--muted);min-height:1.5em}
+.status{margin-top:16px;font-size:.92rem;color:var(--muted);min-height:1.5em; font-weight:500;}
 .status.err{color:var(--danger)}
 
 .sesion{margin-top:22px;background:var(--paper);border-radius:12px;padding:18px;border:2px solid var(--violet)}
@@ -120,7 +120,10 @@ ul.gastos li{display:grid;grid-template-columns:52px 1fr auto auto;gap:12px;alig
 <body>
 <div class="wrap">
   <header>
-    <h1>Gestor de Gastos</h1>
+    <div>
+      <h1>Gestor de Gastos</h1>
+      <span class="version-badge">v3.0 OCR Activo</span>
+    </div>
     <div class="month">
       <input type="month" id="mes" aria-label="Mes">
       <div class="total-line">Total <strong id="totalMes">0,00 €</strong></div>
@@ -157,7 +160,7 @@ ul.gastos li{display:grid;grid-template-columns:52px 1fr auto auto;gap:12px;alig
       <img class="thumb" id="thumb" alt="Foto del ticket">
       <div>
         <h3>Datos del ticket</h3>
-        <p class="hint" id="reviewHint">Revisa los datos extraídos automáticamente.</p>
+        <p class="hint" id="reviewHint">Revisa los datos extraídos o rellena manualmente.</p>
       </div>
     </div>
     <div class="fields">
@@ -345,36 +348,43 @@ ul.gastos li{display:grid;grid-template-columns:52px 1fr auto auto;gap:12px;alig
       const u=await toDataURL(f).catch(()=>null);
       if(!u) continue;
       
-      setStatus("⏳ Analizando ticket... (puede tardar unos segundos la primera vez)");
+      setStatus("⏳ Preparando sistema de lectura...");
       try {
-        // Ejecutar Tesseract OCR
-        const result = await window.Tesseract.recognize(u, 'spa');
+        if (!window.Tesseract) throw new Error("La librería OCR no pudo cargar");
+        
+        // Ejecutamos OCR con registro de progreso visual
+        const result = await window.Tesseract.recognize(u, 'spa', {
+          logger: m => {
+            if(m.status === "recognizing text") {
+              setStatus(`⏳ Extrayendo texto del ticket... ${Math.round(m.progress * 100)}%`);
+            }
+          }
+        });
+        
         const text = result.data.text;
-        
-        // Extraer lógica básica: primera línea como nombre de comercio
-        const lines = text.split('\n').filter(l => l.trim().length > 0);
+        const lines = text.split('\n').map(l=>l.trim()).filter(l => l.length > 0);
         let guessedComercio = lines.length > 0 ? lines[0] : "";
+        if (guessedComercio.length > 30) guessedComercio = guessedComercio.substring(0, 30);
         
-        // Buscar patrón de precio (ej: 14,50 o 14.50)
         let guessedTotal = "";
-        const priceRegex = /\b\d+[,.]\d{2}\b/g;
+        const priceRegex = /\d+[,.]\d{2}/g;
         const matches = text.match(priceRegex);
         
         if(matches) {
             let maxPrice = 0;
             matches.forEach(m => {
                 let val = parseFloat(m.replace(',', '.'));
-                if(val > maxPrice && val < 5000) maxPrice = val; // Evitar números gigantes o fechas
+                if(val > maxPrice && val < 5000) maxPrice = val; 
             });
             if(maxPrice > 0) guessedTotal = maxPrice.toString().replace('.', ',');
         }
         
-        setStatus("✅ Ticket leído. Revisa los datos extraídos.");
+        setStatus("✅ Ticket leído correctamente.");
         openReview({comercio: guessedComercio, total: guessedTotal}, u, null, u);
         
       } catch(e) {
         console.error("Error OCR:", e);
-        setStatus("⚠️ No se pudo extraer el texto automáticamente. Rellena los datos.", true);
+        setStatus("⚠️ Fallo en la lectura automática. Abre el panel para escribirlo.", true);
         openReview({}, u, null, u);
       }
       break; 
