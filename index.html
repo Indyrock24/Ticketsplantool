@@ -129,7 +129,6 @@ ul.gastos li{display:grid;grid-template-columns:52px 1fr auto auto;gap:12px;alig
     <h2 id="slotTitle">Añade tus tickets</h2>
     <p id="slotText">Haz una foto o sube tus imágenes para registrar tus tickets y generar el Excel.</p>
     <div class="btns">
-      <!-- Ahora usamos for="..." para enlazar el botón sin depender del JavaScript -->
       <label class="btn" for="fileCam" style="cursor:pointer">Hacer foto</label>
       <input type="file" id="fileCam" accept="image/*" capture="environment" style="display:none;">
 
@@ -329,7 +328,6 @@ ul.gastos li{display:grid;grid-template-columns:52px 1fr auto auto;gap:12px;alig
     render();
   };
 
-  // Eventos de selección de archivo directos y estables
   $("fileCam").onchange=e=>handleFiles(e.target);
   $("fileUp").onchange=e=>handleFiles(e.target);
 
