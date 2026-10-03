@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Cargamos Tesseract.js para el OCR local -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 :root{
   --bg:#E7ECF1; --paper:#FBFCFD; --ink:#16243B; --muted:#5E6B7E; --line:#CBD4DE;
@@ -155,7 +157,7 @@ ul.gastos li{display:grid;grid-template-columns:52px 1fr auto auto;gap:12px;alig
       <img class="thumb" id="thumb" alt="Foto del ticket">
       <div>
         <h3>Datos del ticket</h3>
-        <p class="hint" id="reviewHint">Rellena o revisa los datos del ticket.</p>
+        <p class="hint" id="reviewHint">Revisa los datos extraídos automáticamente.</p>
       </div>
     </div>
     <div class="fields">
@@ -299,7 +301,7 @@ ul.gastos li{display:grid;grid-template-columns:52px 1fr auto auto;gap:12px;alig
     $("thumb").classList.toggle("hidden",!imgUrl); if(imgUrl)$("thumb").src=imgUrl;
     $("fComercio").value=data.comercio||"";
     $("fFecha").value=/^\d{4}-\d{2}-\d{2}$/.test(data.fecha||"")?data.fecha:today();
-    $("fTotal").value=data.total?num(data.total).toFixed(2).replace(".",","):"";
+    $("fTotal").value=data.total?data.total:"";
     $("fIva").value=data.iva?num(data.iva).toFixed(2).replace(".",","):"";
     $("fCat").value=CATS.includes(data.categoria)?data.categoria:"Otros";
     $("fPago").value=["Tarjeta","Efectivo","Bizum","Otro"].includes(data.metodo)?data.metodo:"Tarjeta";
@@ -307,7 +309,8 @@ ul.gastos li{display:grid;grid-template-columns:52px 1fr auto auto;gap:12px;alig
     $("fNota").value=data.nota||"";
     $("review").classList.remove("hidden");
     $("review").scrollIntoView({behavior:"smooth",block:"start"});
-    $("fComercio").focus({preventScroll:true});
+    if(!$("fComercio").value) $("fComercio").focus({preventScroll:true});
+    else if(!$("fTotal").value) $("fTotal").focus({preventScroll:true});
   }
 
   function closeReview(){$("review").classList.add("hidden");editId=null;pendingThumb=null}
@@ -337,10 +340,44 @@ ul.gastos li{display:grid;grid-template-columns:52px 1fr auto auto;gap:12px;alig
     const files=[...(input.files||[])]; input.value="";
     if(!files.length)return;
     startSes();
+    
     for(const f of files){
       const u=await toDataURL(f).catch(()=>null);
-      openReview({}, u, null, u);
-      break;
+      if(!u) continue;
+      
+      setStatus("⏳ Analizando ticket... (puede tardar unos segundos la primera vez)");
+      try {
+        // Ejecutar Tesseract OCR
+        const result = await window.Tesseract.recognize(u, 'spa');
+        const text = result.data.text;
+        
+        // Extraer lógica básica: primera línea como nombre de comercio
+        const lines = text.split('\n').filter(l => l.trim().length > 0);
+        let guessedComercio = lines.length > 0 ? lines[0] : "";
+        
+        // Buscar patrón de precio (ej: 14,50 o 14.50)
+        let guessedTotal = "";
+        const priceRegex = /\b\d+[,.]\d{2}\b/g;
+        const matches = text.match(priceRegex);
+        
+        if(matches) {
+            let maxPrice = 0;
+            matches.forEach(m => {
+                let val = parseFloat(m.replace(',', '.'));
+                if(val > maxPrice && val < 5000) maxPrice = val; // Evitar números gigantes o fechas
+            });
+            if(maxPrice > 0) guessedTotal = maxPrice.toString().replace('.', ',');
+        }
+        
+        setStatus("✅ Ticket leído. Revisa los datos extraídos.");
+        openReview({comercio: guessedComercio, total: guessedTotal}, u, null, u);
+        
+      } catch(e) {
+        console.error("Error OCR:", e);
+        setStatus("⚠️ No se pudo extraer el texto automáticamente. Rellena los datos.", true);
+        openReview({}, u, null, u);
+      }
+      break; 
     }
   }
 
