@@ -49,8 +49,8 @@ h1{font-size:1.75rem;line-height:1.1;margin:0;letter-spacing:-.02em;font-weight:
 }
 .slot h2{font-size:1.2rem;margin:0 0 4px;font-weight:600}
 .slot p{margin:0 0 18px;color:var(--muted);font-size:.95rem}
-.btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-.btn{font:inherit;font-weight:600;font-size:.95rem;border:0;border-radius:999px;padding:12px 20px;cursor:pointer;background:var(--violet);color:#fff;min-height:44px}
+.btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;align-items:center}
+.btn{font:inherit;font-weight:600;font-size:.95rem;border:0;border-radius:999px;padding:12px 20px;cursor:pointer;background:var(--violet);color:#fff;min-height:44px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
 .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
 .btn.small{padding:8px 14px;min-height:36px;font-size:.85rem}
 .btn:disabled{opacity:.5;cursor:default}
@@ -80,7 +80,7 @@ ul.cola .right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-co
 .review .hint{margin:0;color:var(--muted);font-size:.88rem}
 .fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
 .fields .full{grid-column:1/-1}
-label{display:flex;flex-direction:column;gap:4px;font-size:.82rem;color:var(--muted);font-weight:500}
+label.field-lbl{display:flex;flex-direction:column;gap:4px;font-size:.82rem;color:var(--muted);font-weight:500}
 input,select,textarea{font:inherit;font-size:1rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-height:44px}
 textarea{min-height:64px;resize:vertical}
 .amount{font-variant-numeric:tabular-nums;font-weight:600}
@@ -130,12 +130,16 @@ ul.gastos li{display:grid;grid-template-columns:52px 1fr auto auto;gap:12px;alig
     <h2 id="slotTitle">Añade tus tickets</h2>
     <p id="slotText">Haz una foto o sube tus imágenes para registrar tus tickets y generar el Excel.</p>
     <div class="btns">
-      <button class="btn" id="btnFoto">Hacer foto</button>
-      <button class="btn ghost" id="btnSubir">Subir imágenes</button>
+      <label class="btn" style="cursor:pointer">
+        Hacer foto
+        <input type="file" id="fileCam" accept="image/*" capture="environment" class="hidden">
+      </label>
+      <label class="btn ghost" style="cursor:pointer">
+        Subir imágenes
+        <input type="file" id="fileUp" accept="image/jpeg,image/png,image/webp,image/gif" multiple class="hidden">
+      </label>
       <button class="btn ghost" id="btnManual">Escribir a mano</button>
     </div>
-    <input type="file" id="fileCam" accept="image/*" capture="environment" class="hidden">
-    <input type="file" id="fileUp" accept="image/jpeg,image/png,image/webp,image/gif" multiple class="hidden">
     <div class="status" id="status" role="status" aria-live="polite"></div>
   </section>
 
@@ -158,16 +162,16 @@ ul.gastos li{display:grid;grid-template-columns:52px 1fr auto auto;gap:12px;alig
       </div>
     </div>
     <div class="fields">
-      <label class="full">Comercio<input id="fComercio" autocomplete="off"></label>
-      <label>Fecha<input type="date" id="fFecha"></label>
-      <label>Total (€)<input id="fTotal" class="amount" inputmode="decimal"></label>
-      <label>IVA incluido (€)<input id="fIva" class="amount" inputmode="decimal"></label>
-      <label>Categoría<select id="fCat"></select></label>
-      <label>Forma de pago<select id="fPago">
+      <label class="field-lbl full">Comercio<input id="fComercio" autocomplete="off"></label>
+      <label class="field-lbl">Fecha<input type="date" id="fFecha"></label>
+      <label class="field-lbl">Total (€)<input id="fTotal" class="amount" inputmode="decimal"></label>
+      <label class="field-lbl">IVA incluido (€)<input id="fIva" class="amount" inputmode="decimal"></label>
+      <label class="field-lbl">Categoría<select id="fCat"></select></label>
+      <label class="field-lbl">Forma de pago<select id="fPago">
         <option>Tarjeta</option><option>Efectivo</option><option>Bizum</option><option>Otro</option>
       </select></label>
-      <label>NIF del comercio<input id="fNif" autocomplete="off"></label>
-      <label class="full">Nota<textarea id="fNota" placeholder="Opcional"></textarea></label>
+      <label class="field-lbl">NIF del comercio<input id="fNif" autocomplete="off"></label>
+      <label class="field-lbl full">Nota<textarea id="fNota" placeholder="Opcional"></textarea></label>
     </div>
     <div class="actions">
       <button class="btn ghost" id="btnCancelar">Descartar</button>
@@ -327,8 +331,6 @@ ul.gastos li{display:grid;grid-template-columns:52px 1fr auto auto;gap:12px;alig
     render();
   };
 
-  $("btnFoto").onclick=()=>$("fileCam").click();
-  $("btnSubir").onclick=()=>$("fileUp").click();
   $("fileCam").onchange=e=>handleFiles(e.target);
   $("fileUp").onchange=e=>handleFiles(e.target);
 
